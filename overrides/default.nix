@@ -162,7 +162,7 @@ lib.composeManyExtensions [
             } else super.argon2-cffi;
 
       awscrt = super.awscrt.overridePythonAttrs (old: {
-        nativeBuildInputs = [ pkgs.cmake ] ++ old.nativeBuildInputs;
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.cmake ];
         dontUseCmakeConfigure = true;
       });
 
@@ -222,7 +222,7 @@ lib.composeManyExtensions [
             (old: {
               # 1.10.0 contains a pyproject.toml that requires a pre-release Poetry
               # We can avoid using Poetry and use the generated setup.py
-              preConfigure = old.preConfigure or "" + ''
+              preConfigure = (old.preConfigure or "") + ''
                 rm pyproject.toml
               '';
             }) else drv;
@@ -250,8 +250,8 @@ lib.composeManyExtensions [
         if self.python.implementation == "pypy" then null else
         (
           super.cffi.overridePythonAttrs (old: {
-            nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [ pkg-config ];
-            buildInputs = old.buildInputs or [ ] ++ [ pkgs.libffi ];
+            nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
+            buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.libffi ];
             prePatch = (old.prePatch or "") + lib.optionalString (!(old.src.isWheel or false) && stdenv.isDarwin) ''
               # Remove setup.py impurities
               substituteInPlace setup.py --replace "'-iwithsysroot/usr/include/ffi'" ""
@@ -341,7 +341,7 @@ lib.composeManyExtensions [
           buildInputs = (old.buildInputs or [ ])
             ++ [ (if lib.versionAtLeast old.version "37" then pkgs.openssl_3 else pkgs.openssl_1_1) ]
             ++ lib.optionals stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security pkgs.libiconv ];
-          propagatedBuildInputs = old.propagatedBuildInputs or [ ] ++ [ self.cffi ];
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.cffi ];
         } // lib.optionalAttrs (lib.versionAtLeast old.version "3.4" && lib.versionOlder old.version "3.5") {
           CRYPTOGRAPHY_DONT_BUILD_RUST = "1";
         } // lib.optionalAttrs (lib.versionAtLeast old.version "3.5" && !isWheel) rec {
@@ -389,7 +389,7 @@ lib.composeManyExtensions [
       dbus-python = super.dbus-python.overridePythonAttrs (old: {
         outputs = [ "out" "dev" ];
 
-        postPatch = old.postPatch or "" + ''
+        postPatch = (old.postPatch or "") + ''
           substituteInPlace ./configure --replace /usr/bin/file ${pkgs.file}/bin/file
           substituteInPlace ./dbus-python.pc.in --replace 'Cflags: -I''${includedir}' 'Cflags: -I''${includedir}/dbus-1.0'
         '';
@@ -405,12 +405,12 @@ lib.composeManyExtensions [
           '' else "")
         ];
 
-        preBuild = old.preBuild or "" + ''
+        preBuild = (old.preBuild or "") + ''
           make distclean
         '';
 
-        nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [ pkg-config ];
-        buildInputs = old.buildInputs or [ ] ++ [ pkgs.dbus pkgs.dbus-glib ]
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.dbus pkgs.dbus-glib ]
           # My guess why it's sometimes trying to -lncurses.
           # It seems not to retain the dependency anyway.
           ++ lib.optional (! self.python ? modules) pkgs.ncurses;
@@ -542,7 +542,7 @@ lib.composeManyExtensions [
       });
 
       fastecdsa = super.fastecdsa.overridePythonAttrs (old: {
-        buildInputs = old.buildInputs ++ [ pkgs.gmp.dev ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.gmp.dev ];
       });
 
       fastparquet = super.fastparquet.overridePythonAttrs (old: {
@@ -557,8 +557,8 @@ lib.composeManyExtensions [
 
       fiona = super.fiona.overridePythonAttrs (old: {
         format = lib.optionalString (!(old.src.isWheel or false)) "setuptools";
-        buildInputs = old.buildInputs or [ ] ++ [ pkgs.gdal ];
-        nativeBuildInputs = old.nativeBuildInputs or [ ]
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.gdal ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ])
           ++ lib.optionals ((old.src.isWheel or false) && (!pkgs.stdenv.isDarwin)) [ pkgs.autoPatchelfHook ]
           # for gdal-config
           ++ [ pkgs.gdal ];
@@ -724,7 +724,7 @@ lib.composeManyExtensions [
       });
 
       igraph = super.igraph.overridePythonAttrs (old: {
-        nativeBuildInputs = [ pkgs.cmake ] ++ old.nativeBuildInputs;
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.cmake ];
         dontUseCmakeConfigure = true;
       });
 
@@ -831,8 +831,8 @@ lib.composeManyExtensions [
         ];
       });
 
-      jq = super.jq.overridePythonAttrs (_: {
-        buildInputs = [ pkgs.jq ];
+      jq = super.jq.overridePythonAttrs (old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.jq ];
         patches = [
           (pkgs.fetchpatch {
             url = "https://raw.githubusercontent.com/NixOS/nixpkgs/088da8735f6620b60d724aa7db742607ea216087/pkgs/development/python-modules/jq/jq-py-setup.patch";
@@ -907,13 +907,13 @@ lib.composeManyExtensions [
         '';
       });
 
-      libvirt-python = super.libvirt-python.overridePythonAttrs ({ nativeBuildInputs ? [ ], ... }: {
-        nativeBuildInputs = nativeBuildInputs ++ [ pkg-config ];
-        propagatedBuildInputs = [ pkgs.libvirt ];
+      libvirt-python = super.libvirt-python.overridePythonAttrs (old: {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.libvirt ];
       });
 
       lightgbm = super.lightgbm.overridePythonAttrs (old: {
-        nativeBuildInputs = [ pkgs.cmake ] ++ old.nativeBuildInputs;
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.cmake ];
         dontUseCmakeConfigure = true;
         postConfigure = ''
           export HOME=$(mktemp -d)
@@ -958,7 +958,7 @@ lib.composeManyExtensions [
 
           __impureHostDeps = lib.optionals pkgs.stdenv.isDarwin [ "/usr/lib/libm.dylib" ];
 
-          passthru = old.passthru // { inherit llvm; };
+          passthru = (old.passthru or { }) // { inherit llvm; };
         }
       );
 
@@ -1011,7 +1011,7 @@ lib.composeManyExtensions [
         {
           XDG_RUNTIME_DIR = "/tmp";
 
-          buildInputs = old.buildInputs or [ ] ++ [
+          buildInputs = (old.buildInputs or [ ]) ++ [
             pkgs.which
           ] ++ lib.optionals enableGhostscript [
             pkgs.ghostscript
@@ -1042,7 +1042,7 @@ lib.composeManyExtensions [
           # Clang doesn't understand -fno-strict-overflow, and matplotlib builds with -Werror
           hardeningDisable = if stdenv.isDarwin then [ "strictoverflow" ] else [ ];
 
-          passthru = old.passthru or { } // passthru;
+          passthru = (old.passthru or { }) // passthru;
 
           MPLSETUPCFG = pkgs.writeText "mplsetup.cfg" (lib.generators.toINI { } passthru.config);
 
@@ -1219,7 +1219,7 @@ lib.composeManyExtensions [
           preConfigure = ''
             export NPY_NUM_BUILD_JOBS=$NIX_BUILD_CORES
           '';
-          passthru = old.passthru // {
+          passthru = (old.passthru or { }) // {
             inherit blas;
             inherit blasImplementation cfg;
           };
@@ -1271,8 +1271,8 @@ lib.composeManyExtensions [
         # Can't use cmakeFlags because cmake is called by setup.py
         CMAKE_ARGS = lib.optionalString stdenv.isDarwin "-DWITH_OPENCL=OFF";
 
-        nativeBuildInputs = [ pkgs.cmake ] ++ old.nativeBuildInputs;
-        buildInputs = [
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.cmake ];
+        buildInputs = (old.buildInputs or [ ]) ++ [
           self.scikit-build
         ] ++ lib.optionals stdenv.isDarwin (with pkgs.darwin.apple_sdk.frameworks; [
           AVFoundation
@@ -1280,7 +1280,7 @@ lib.composeManyExtensions [
           CoreMedia
           MediaToolbox
           VideoDecodeAcceleration
-        ]) ++ (old.buildInputs or [ ]);
+        ]);
         dontUseCmakeConfigure = true;
       };
 
@@ -1296,13 +1296,13 @@ lib.composeManyExtensions [
       });
 
       openvino = super.openvino.overridePythonAttrs (old: {
-        buildInputs = [
+        buildInputs = (old.buildInputs or [ ]) ++ [
           pkgs.ocl-icd
           pkgs.hwloc
           pkgs.tbb
           pkgs.numactl
           pkgs.libxml2
-        ] ++ (old.buildInputs or [ ]);
+        ];
       });
 
       orjson =
@@ -1343,7 +1343,7 @@ lib.composeManyExtensions [
 
       pandas = super.pandas.overridePythonAttrs (old: {
 
-        buildInputs = old.buildInputs or [ ] ++ lib.optional stdenv.isDarwin pkgs.libcxx;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optional stdenv.isDarwin pkgs.libcxx;
 
         # Doesn't work with -Werror,-Wunused-command-line-argument
         # https://github.com/NixOS/nixpkgs/issues/39687
@@ -1364,8 +1364,8 @@ lib.composeManyExtensions [
       });
 
       pantalaimon = super.pantalaimon.overridePythonAttrs (old: {
-        nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [ pkgs.installShellFiles ];
-        postInstall = old.postInstall or "" + ''
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.installShellFiles ];
+        postInstall = (old.postInstall or "") + ''
           installManPage docs/man/*.[1-9]
         '';
       });
@@ -1396,8 +1396,8 @@ lib.composeManyExtensions [
       );
 
       pikepdf = super.pikepdf.overridePythonAttrs (old: {
-        buildInputs = old.buildInputs or [ ] ++ [ pkgs.qpdf self.pybind11 ];
-        pythonImportsCheck = old.pythonImportsCheck or [ ] ++ [ "pikepdf" ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.qpdf self.pybind11 ];
+        pythonImportsCheck = (old.pythonImportsCheck or [ ]) ++ [ "pikepdf" ];
       });
 
       pillow = super.pillow.overridePythonAttrs (old:
@@ -1426,7 +1426,7 @@ lib.composeManyExtensions [
       });
 
       poethepoet = super.poethepoet.overrideAttrs (old: {
-        propagatedBuildInputs = old.propagatedBuildInputs ++ [ self.poetry ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.poetry ];
       });
 
       poetry-core = super.poetry-core.overridePythonAttrs (_:
@@ -1585,13 +1585,13 @@ lib.composeManyExtensions [
         buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.fuse3 ];
       });
 
-      pygame = super.pygame.overridePythonAttrs (_: rec {
-        nativeBuildInputs = [
+      pygame = super.pygame.overridePythonAttrs (old: rec {
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
           pkg-config
           pkgs.SDL
         ];
 
-        buildInputs = [
+        buildInputs = (old.buildInputs or [ ]) ++ [
           pkgs.SDL
           pkgs.SDL_image
           pkgs.SDL_mixer
@@ -1763,7 +1763,7 @@ lib.composeManyExtensions [
           '';
           dontConfigure = true;
           dontWrapQtApps = true;
-          nativeBuildInputs = old.nativeBuildInputs or [ ] ++ [
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
             self.pyqt-builder
             self.sip
             qt5.full
@@ -1776,7 +1776,7 @@ lib.composeManyExtensions [
         in
         super.pyqt5-qt5.overridePythonAttrs (old: {
           dontWrapQtApps = true;
-          propagatedBuildInputs = old.propagatedBuildInputs or [ ] ++ [
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
             qt5.full
             qt5.qtgamepad # As of 2022-05-13 not a port of qt5.full
             pkgs.gtk3
@@ -1794,7 +1794,7 @@ lib.composeManyExtensions [
 
       pytest = super.pytest.overridePythonAttrs (old: {
         # Fixes https://github.com/pytest-dev/pytest/issues/7891
-        postPatch = old.postPatch or "" + ''
+        postPatch = (old.postPatch or "") + ''
           # sometimes setup.cfg doesn't exist
           if [ -f setup.cfg ]; then
             sed -i '/\[metadata\]/aversion = ${old.version}' setup.cfg
@@ -1815,8 +1815,8 @@ lib.composeManyExtensions [
 
       pytest-runner = super.pytest-runner or super.pytestrunner;
 
-      pytest-pylint = super.pytest-pylint.overridePythonAttrs (_: {
-        buildInputs = [ self.pytest-runner ];
+      pytest-pylint = super.pytest-pylint.overridePythonAttrs (old: {
+        buildInputs = (old.buildInputs or [ ]) ++ [ self.pytest-runner ];
       });
 
       # pytest-splinter seems to put a .marker file in an empty directory
@@ -1835,13 +1835,13 @@ lib.composeManyExtensions [
       # E           ValueError: ZIP does not support timestamps before 1980
       # /nix/store/55b9ip7xkpimaccw9pa0vacy5q94f5xa-python3-3.7.6/lib/python3.7/zipfile.py:357: ValueError
       pytest-splinter = super.pytest-splinter.overrideAttrs (old: {
-        postInstall = old.postInstall or "" + ''
+        postInstall = (old.postInstall or "") + ''
           rm $out/${super.python.sitePackages}/pytest_splinter/profiles/firefox/.marker
         '';
       });
 
-      python-jose = super.python-jose.overridePythonAttrs (_: {
-        buildInputs = [ self.pytest-runner ];
+      python-jose = super.python-jose.overridePythonAttrs (old: {
+        buildInputs = (old.buildInputs or []) ++ [ self.pytest-runner ];
       });
 
       python-magic = super.python-magic.overridePythonAttrs (old: {
@@ -1849,11 +1849,11 @@ lib.composeManyExtensions [
           substituteInPlace magic/loader.py \
             --replace "'libmagic.so.1'" "'${lib.getLib pkgs.file}/lib/libmagic.so.1'"
         '';
-        pythonImportsCheck = old.pythonImportsCheck or [ ] ++ [ "magic" ];
+        pythonImportsCheck = (old.pythonImportsCheck or [ ]) ++ [ "magic" ];
       });
 
       python-olm = super.python-olm.overridePythonAttrs (old: {
-        buildInputs = old.buildInputs or [ ] ++ [ pkgs.olm ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.olm ];
       });
 
       python-snappy = super.python-snappy.overridePythonAttrs (old: {
@@ -2032,7 +2032,7 @@ lib.composeManyExtensions [
         in
         selenium.overridePythonAttrs (old: {
           # Selenium <4 can be installed from sources, with setuptools
-          buildInputs = old.buildInputs ++ (lib.optionals (!v4orLater) [ self.setuptools ]);
+          buildInputs = (old.buildInputs or [ ]) ++ (lib.optionals (!v4orLater) [ self.setuptools ]);
         });
 
       shapely = super.shapely.overridePythonAttrs (old: {
@@ -2076,8 +2076,8 @@ lib.composeManyExtensions [
       });
 
       systemd-python = super.systemd-python.overridePythonAttrs (old: {
-        nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.pkg-config ];
-        buildInputs = old.buildInputs ++ [ pkgs.systemd ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.pkg-config ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.systemd ];
       });
 
       tables = super.tables.overridePythonAttrs (old: {
@@ -2177,7 +2177,7 @@ lib.composeManyExtensions [
               pkgs.nccl.dev
               pkgs.nccl.out
             ];
-            propagatedBuildInputs = [
+            propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
               self.numpy
               self.future
               self.typing-extensions
@@ -2382,7 +2382,7 @@ lib.composeManyExtensions [
       # Additionally, since pyee uses vcversioner to specify its version, we need to do this
       # manually specify its version.
       pyee = super.pyee.overrideAttrs (old: {
-        postPatch = old.postPatch or "" + ''
+        postPatch = (old.postPatch or "") + ''
           sed -i setup.py \
             -e '/setup_requires/,/],/d' \
             -e 's/vcversioner={},/version="${old.version}",/'
@@ -2397,7 +2397,7 @@ lib.composeManyExtensions [
       # but newrelic has a seemingly unnecessary version constraint for <4
       # So we patch that out
       newrelic = super.newrelic.overridePythonAttrs (old: {
-        postPatch = old.postPatch or "" + ''
+        postPatch = (old.postPatch or "") + ''
           substituteInPlace setup.py --replace '"setuptools_scm>=3.2,<4"' '"setuptools_scm"'
         '';
       });
@@ -2413,15 +2413,15 @@ lib.composeManyExtensions [
         {
           DOXYGEN = "${pkgs.doxygen}/bin/doxygen";
 
-          nativeBuildInputs = with pkgs; [
+          nativeBuildInputs = with pkgs; (old.nativeBuildInputs or [ ]) ++ [
             which
             doxygen
             gtk3
             pkg-config
             autoPatchelfHook
-          ] ++ (old.nativeBuildInputs or [ ]);
+          ];
 
-          buildInputs = with pkgs; [
+          buildInputs = with pkgs; (old.buildInputs or [ ]) ++ [
             gtk3
             webkitgtk
             ncurses
@@ -2437,7 +2437,7 @@ lib.composeManyExtensions [
             libGL
             libglvnd
             mesa
-          ] ++ old.buildInputs;
+          ];
 
           buildPhase = ''
             ${localPython.interpreter} build.py -v build_wx
@@ -2538,7 +2538,7 @@ lib.composeManyExtensions [
       });
 
       mkdocs = super.mkdocs.overridePythonAttrs (old: {
-        propagatedBuildInputs = old.propagatedBuildInputs or [ ] ++ [ self.babel ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.babel ];
       });
 
       # patch mkdocstrings to fix jinja2 imports
@@ -2554,7 +2554,7 @@ lib.composeManyExtensions [
           lib.optionalAttrs
             (lib.versionAtLeast old.version "0.17" && lib.versionOlder old.version "0.18")
             {
-              patches = old.patches or [ ] ++ lib.optionals (!(old.src.isWheel or false)) [ patchJinja2Imports ];
+              patches = (old.patches or [ ]) ++ lib.optionals (!(old.src.isWheel or false)) [ patchJinja2Imports ];
               # strip the first two levels ("a/src/") when patching since we're in site-packages
               # just above mkdocstrings
               postInstall = lib.optionalString (old.src.isWheel or false) ''
