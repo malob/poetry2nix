@@ -163,5 +163,6 @@ builtins.removeAttrs
   virtualenv-post-20-18 = callTest ./virtualenv-post-20-18 { };
   grpcio-wheel = callTest ./grpcio-wheel { };
   panel-wheels = callTest ./panel-wheels { };
+  tiktoken = callTest ./tiktoken { };
 }
   skipTests

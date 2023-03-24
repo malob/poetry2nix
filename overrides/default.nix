@@ -2472,6 +2472,22 @@ lib.composeManyExtensions [
         }
       );
 
+      tiktoken = super.tiktoken.overridePythonAttrs (old: {
+        cargoDeps = pkgs.rustPlatform.importCargoLock {
+          lockFile = ./tiktoken-Cargo.lock;
+        };
+        postPatch = ''
+          cp ${./tiktoken-Cargo.lock} Cargo.lock
+        '';
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ (with pkgs.rustPlatform; [
+          cargoSetupHook
+          rust.cargo
+          rust.rustc
+          super.setuptools-rust
+        ]);
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
+      });
+
       tinycss2 = super.tinycss2.overridePythonAttrs (
         old: {
           buildInputs = (old.buildInputs or [ ]) ++ [ self.pytest-runner ];
