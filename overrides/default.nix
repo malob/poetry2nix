@@ -35,26 +35,23 @@ let
         else
           if attr == "cython" then self.python.pythonForBuild.pkgs.cython else self.${attr};
     in
-    (
-      # Flit only works on Python3
-      if (attr == "flit-core" || attr == "flit" || attr == "hatchling") && !self.isPy3k then drv
-      else if drv == null then null
-      else if drv ? overridePythonAttrs == false then drv
-      else
-        drv.overridePythonAttrs (
-          old:
-          # We do not need the build system for wheels.
-          if old ? format && old.format == "wheel" then
-            { }
-          else
-            {
-              nativeBuildInputs =
-                (old.nativeBuildInputs or [ ])
-                ++ lib.optionals (!(builtins.isNull buildSystem)) [ buildSystem ]
-                ++ map (a: self.${a}) extraAttrs;
-            }
-        )
-    );
+    if (attr == "flit-core" || attr == "flit" || attr == "hatchling") && !self.isPy3k then drv
+    else if drv == null then null
+    else if !drv ? overridePythonAttrs then drv
+    else
+      drv.overridePythonAttrs (
+        old:
+        # We do not need the build system for wheels.
+        if old ? format && old.format == "wheel" then
+          { }
+        else
+          {
+            nativeBuildInputs =
+              (old.nativeBuildInputs or [ ])
+              ++ lib.optionals (!(builtins.isNull buildSystem)) [ buildSystem ]
+              ++ map (a: self.${a}) extraAttrs;
+          }
+      );
 
 
 in
@@ -94,7 +91,6 @@ lib.composeManyExtensions [
           selector = builtins.concatStringsSep "" (lib.take 2 (builtins.splitVersion version));
         in
           pkgs."qt${selector}" or pkgs.qt5;
-
     in
 
     {
@@ -219,7 +215,7 @@ lib.composeManyExtensions [
             cargoDeps =
               pkgs.rustPlatform.fetchCargoTarball
                 {
-                  src = old.src;
+                  inherit (old) src;
                   sourceRoot = "${old.pname}-${old.version}/src/_bcrypt";
                   name = "${old.pname}-${old.version}";
                   sha256 = getCargoHash old.version;
@@ -412,7 +408,7 @@ lib.composeManyExtensions [
             } // lib.optionalAttrs (lib.versionAtLeast old.version "3.5" && !isWheel) rec {
               cargoDeps =
                 pkgs.rustPlatform.fetchCargoTarball {
-                  src = old.src;
+                  inherit (old) src;
                   sourceRoot = "${old.pname}-${old.version}/${cargoRoot}";
                   name = "${old.pname}-${old.version}";
                   inherit sha256;
@@ -502,13 +498,11 @@ lib.composeManyExtensions [
         }
       );
 
-      django = (
-        super.django.overridePythonAttrs (
-          old: {
-            propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ])
-              ++ [ pkgs.gettext self.pytest-runner ];
-          }
-        )
+      django = super.django.overridePythonAttrs (
+        old: {
+          propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ])
+            ++ [ pkgs.gettext self.pytest-runner ];
+        }
       );
 
       django-bakery = super.django-bakery.overridePythonAttrs (
@@ -770,8 +764,8 @@ lib.composeManyExtensions [
         if old.format != "wheel" then
           (
             let
-              mpi = pkgs.hdf5.mpi;
-              mpiSupport = pkgs.hdf5.mpiSupport;
+              inherit (pkgs.hdf5) mpi;
+              inherit (pkgs.hdf5) mpiSupport;
             in
             {
               nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
@@ -1119,7 +1113,7 @@ lib.composeManyExtensions [
 
           __impureHostDeps = lib.optionals pkgs.stdenv.isDarwin [ "/usr/lib/libm.dylib" ];
 
-          passthru = old.passthru // { llvm = llvm; };
+          passthru = old.passthru // { inherit llvm; };
         }
       );
 
@@ -1285,15 +1279,13 @@ lib.composeManyExtensions [
         let
           cfg = pkgs.writeTextFile {
             name = "mpi.cfg";
-            text = (
-              lib.generators.toINI
-                { }
-                {
-                  mpi = {
-                    mpicc = "${pkgs.mpi.outPath}/bin/mpicc";
-                  };
-                }
-            );
+            text = lib.generators.toINI
+              { }
+              {
+                mpi = {
+                  mpicc = "${pkgs.mpi.outPath}/bin/mpicc";
+                };
+              };
           };
         in
         {
@@ -1382,19 +1374,17 @@ lib.composeManyExtensions [
           blasImplementation = lib.nameFromURL blas.name "-";
           cfg = pkgs.writeTextFile {
             name = "site.cfg";
-            text = (
-              lib.generators.toINI
-                { }
-                {
-                  ${blasImplementation} = {
-                    include_dirs = "${blas}/include";
-                    library_dirs = "${blas}/lib";
-                  } // lib.optionalAttrs (blasImplementation == "mkl") {
-                    mkl_libs = "mkl_rt";
-                    lapack_libs = "";
-                  };
-                }
-            );
+            text = lib.generators.toINI
+              { }
+              {
+                ${blasImplementation} = {
+                  include_dirs = "${blas}/include";
+                  library_dirs = "${blas}/lib";
+                } // lib.optionalAttrs (blasImplementation == "mkl") {
+                  mkl_libs = "mkl_rt";
+                  lapack_libs = "";
+                };
+              };
           };
         in
         {
@@ -1410,7 +1400,7 @@ lib.composeManyExtensions [
             export NPY_NUM_BUILD_JOBS=$NIX_BUILD_CORES
           '';
           passthru = old.passthru // {
-            blas = blas;
+            inherit blas;
             inherit blasImplementation cfg;
           };
         }
@@ -1618,7 +1608,7 @@ lib.composeManyExtensions [
           buildInputs = with pkgs; (old.buildInputs or [ ])
             ++ [ freetype libjpeg zlib libtiff libxcrypt libwebp tcl lcms2 ]
             ++ lib.optionals (lib.versionAtLeast old.version "7.1.0") [ xorg.libxcb ]
-            ++ lib.optionals (self.isPyPy) [ tk xorg.libX11 ];
+            ++ lib.optionals self.isPyPy [ tk xorg.libX11 ];
           preConfigure = lib.optional (old.format != "wheel") preConfigure;
         }
       );
@@ -1733,7 +1723,7 @@ lib.composeManyExtensions [
                 _arrow-cpp = pkgs.arrow-cpp.override (
                   builtins.intersectAttrs
                     (lib.functionArgs pkgs.arrow-cpp.override)
-                    { python = self.python; python3 = self.python; }
+                    { inherit (self) python; python3 = self.python; }
                 );
 
                 ARROW_HOME = _arrow-cpp;
@@ -2460,7 +2450,7 @@ lib.composeManyExtensions [
 
       tensorflow-macos = super.tensorflow-macos.overridePythonAttrs (
         old: {
-          postInstall = self.tensorflow.postInstall;
+          inherit (self.tensorflow) postInstall;
         }
       );
 
@@ -2550,7 +2540,7 @@ lib.composeManyExtensions [
             cudatoolkit
           ];
           preConfigure =
-            if (enableCuda) then ''
+            if enableCuda then ''
               export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${self.torch}/${self.python.sitePackages}/torch/lib:${lib.makeLibraryPath [ cudatoolkit "${cudatoolkit}" ]}"
             '' else ''
               export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:${self.torch}/${self.python.sitePackages}/torch/lib"
@@ -2602,7 +2592,7 @@ lib.composeManyExtensions [
       # Stop infinite recursion by using bootstrapped pkg from nixpkgs
       bootstrapped-pip = super.bootstrapped-pip.override {
         wheel = ((if self.python.isPy2 then pkgs.python2 else pkgs.python3).pkgs.override {
-          python = self.python;
+          inherit (self) python;
         }).wheel;
       };
 
@@ -2676,7 +2666,7 @@ lib.composeManyExtensions [
 
       wheel = ((
         pkgs.python3.pkgs.override {
-          python = self.python;
+          inherit (self) python;
         }
       ).wheel.override {
         inherit (self) buildPythonPackage bootstrapped-pip setuptools;
