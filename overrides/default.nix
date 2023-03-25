@@ -103,17 +103,17 @@ lib.composeManyExtensions [
         # Inputs copied from nixpkgs as ansible doesn't specify it's dependencies
         # in a correct manner.
         propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
-          self.pycrypto
-          self.paramiko
-          self.jinja2
-          self.pyyaml
-          self.httplib2
-          self.six
-          self.netaddr
           self.dnspython
-          self.jmespath
           self.dopy
+          self.httplib2
+          self.jinja2
+          self.jmespath
           self.ncclient
+          self.netaddr
+          self.paramiko
+          self.pycrypto
+          self.pyyaml
+          self.six
         ];
       });
 
@@ -176,14 +176,19 @@ lib.composeManyExtensions [
           );
         in
         super.bcrypt.overridePythonAttrs (old: {
-          nativeBuildInputs = with pkgs;
-            (old.nativeBuildInputs or [ ])
-              ++ lib.optionals (lib.versionAtLeast old.version "4")
-              (with pkgs.rustPlatform; [ rust.rustc rust.cargo cargoSetupHook self.setuptools-rust ]);
-          buildInputs = (old.buildInputs or [ ])
-            ++ [ pkgs.libffi ]
-            ++ lib.optionals (lib.versionAtLeast old.version "4" && stdenv.isDarwin)
-            [ pkgs.darwin.apple_sdk.frameworks.Security pkgs.libiconv ];
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++
+            lib.optionals (lib.versionAtLeast old.version "4") (with pkgs.rustPlatform; [
+              cargoSetupHook
+              rust.cargo
+              rust.rustc
+              self.setuptools-rust
+            ]);
+          buildInputs = (old.buildInputs or [ ]) ++ [
+            pkgs.libffi
+          ] ++ lib.optionals (lib.versionAtLeast old.version "4" && stdenv.isDarwin) [
+            pkgs.darwin.apple_sdk.frameworks.Security
+            pkgs.libiconv
+          ];
         } // lib.optionalAttrs (lib.versionAtLeast old.version "4") {
           cargoDeps = pkgs.rustPlatform.fetchCargoTarball {
             inherit (old) src;
@@ -333,14 +338,20 @@ lib.composeManyExtensions [
               ) else super.cryptography;
         in
         scrypto.overridePythonAttrs (old: {
-          nativeBuildInputs = (old.nativeBuildInputs or [ ])
-            ++ lib.optionals (lib.versionAtLeast old.version "3.4") [ self.setuptools-rust ]
-            ++ lib.optional (!self.isPyPy) pyBuildPackages.cffi
-            ++ lib.optional (lib.versionAtLeast old.version "3.5" && !isWheel)
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ lib.optionals (!self.isPyPy) [
+            pyBuildPackages.cffi
+          ] ++ lib.optionals (lib.versionAtLeast old.version "3.4") [
+            self.setuptools-rust
+          ] ++ lib.optionals (lib.versionAtLeast old.version "3.5" && !isWheel)
             (with pkgs.rustPlatform; [ cargoSetupHook rust.cargo rust.rustc ]);
-          buildInputs = (old.buildInputs or [ ])
-            ++ [ (if lib.versionAtLeast old.version "37" then pkgs.openssl_3 else pkgs.openssl_1_1) ]
-            ++ lib.optionals stdenv.isDarwin [ pkgs.darwin.apple_sdk.frameworks.Security pkgs.libiconv ];
+
+          buildInputs = (old.buildInputs or [ ]) ++ [
+            (if lib.versionAtLeast old.version "37" then pkgs.openssl_3 else pkgs.openssl_1_1)
+          ] ++ lib.optionals stdenv.isDarwin [
+            pkgs.darwin.apple_sdk.frameworks.Security
+            pkgs.libiconv
+          ];
+
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.cffi ];
         } // lib.optionalAttrs (lib.versionAtLeast old.version "3.4" && lib.versionOlder old.version "3.5") {
           CRYPTOGRAPHY_DONT_BUILD_RUST = "1";
@@ -410,10 +421,14 @@ lib.composeManyExtensions [
         '';
 
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
-        buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.dbus pkgs.dbus-glib ]
+        buildInputs = (old.buildInputs or [ ]) ++ [
+          pkgs.dbus
+          pkgs.dbus-glib
+        ] ++ lib.optionals (! self.python ? modules) [
           # My guess why it's sometimes trying to -lncurses.
           # It seems not to retain the dependency anyway.
-          ++ lib.optional (! self.python ? modules) pkgs.ncurses;
+          pkgs.ncurses
+        ];
       });
 
       dcli = super.dcli.overridePythonAttrs (old: {
@@ -421,8 +436,9 @@ lib.composeManyExtensions [
       });
 
       ddtrace = super.ddtrace.overridePythonAttrs (old: {
-        buildInputs = (old.buildInputs or [ ])
-          ++ (lib.optionals pkgs.stdenv.isDarwin [ pkgs.darwin.IOKit ]);
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [
+          pkgs.darwin.IOKit
+        ];
       });
 
       dictdiffer = super.dictdiffer.overridePythonAttrs (old: {
@@ -431,8 +447,10 @@ lib.composeManyExtensions [
       });
 
       django = super.django.overridePythonAttrs (old: {
-        propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ])
-          ++ [ pkgs.gettext self.pytest-runner ];
+        propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ]) ++ [
+          pkgs.gettext
+          self.pytest-runner
+        ];
       });
 
       django-bakery = super.django-bakery.overridePythonAttrs (old: {
@@ -558,10 +576,12 @@ lib.composeManyExtensions [
       fiona = super.fiona.overridePythonAttrs (old: {
         format = lib.optionalString (!(old.src.isWheel or false)) "setuptools";
         buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.gdal ];
-        nativeBuildInputs = (old.nativeBuildInputs or [ ])
-          ++ lib.optionals ((old.src.isWheel or false) && (!pkgs.stdenv.isDarwin)) [ pkgs.autoPatchelfHook ]
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
           # for gdal-config
-          ++ [ pkgs.gdal ];
+          pkgs.gdal
+        ] ++ lib.optionals ((old.src.isWheel or false) && (!pkgs.stdenv.isDarwin)) [
+          pkgs.autoPatchelfHook
+        ];
       });
 
       flatbuffers = super.flatbuffers.overrideAttrs (old: {
@@ -655,38 +675,35 @@ lib.composeManyExtensions [
         '';
       });
 
-      h5py = super.h5py.overridePythonAttrs (old:
-        if old.format != "wheel" then
-          (
-            let
-              inherit (pkgs.hdf5) mpi;
-              inherit (pkgs.hdf5) mpiSupport;
-            in
-            {
-              nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
-              buildInputs =
-                (old.buildInputs or [ ])
-                ++ [ pkgs.hdf5 self.pkgconfig ]
-                ++ lib.optional mpiSupport mpi
-              ;
-              propagatedBuildInputs =
-                (old.propagatedBuildInputs or [ ])
-                ++ lib.optionals mpiSupport [ self.mpi4py self.openssh ]
-              ;
-              preBuild = if mpiSupport then "export CC=${mpi}/bin/mpicc" else "";
-              HDF5_DIR = "${pkgs.hdf5}";
-              HDF5_MPI = if mpiSupport then "ON" else "OFF";
-              # avoid strict pinning of numpy
-              postPatch = ''
-                substituteInPlace setup.py \
-                  --replace "numpy ==" "numpy >="
-              '';
-              pythonImportsCheck = [ "h5py" ];
-            }
-          ) else old
-      );
+      h5py =
+        let
+          inherit (pkgs.hdf5) mpi;
+          inherit (pkgs.hdf5) mpiSupport;
+        in
+        super.h5py.overridePythonAttrs (old: old // lib.optionalAttrs (old.format != "wheel") {
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
+          buildInputs = (old.buildInputs or [ ]) ++ [
+            pkgs.hdf5
+            self.pkgconfig
+          ] ++ lib.optionals mpiSupport [
+            mpi
+          ];
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ lib.optionals mpiSupport [
+            self.mpi4py
+            self.openssh
+          ];
+          preBuild = if mpiSupport then "export CC=${mpi}/bin/mpicc" else "";
+          HDF5_DIR = "${pkgs.hdf5}";
+          HDF5_MPI = if mpiSupport then "ON" else "OFF";
+          # avoid strict pinning of numpy
+          postPatch = ''
+            substituteInPlace setup.py \
+              --replace "numpy ==" "numpy >="
+          '';
+          pythonImportsCheck = [ "h5py" ];
+        });
 
-      hid = super.hid.overridePythonAttrs (old: {
+      hid = super.hid.overridePythonAttrs (_: {
         postPatch = ''
           found=
           for name in libhidapi-hidraw libhidapi-libusb libhidapi-iohidmanager libhidapi; do
@@ -784,7 +801,8 @@ lib.composeManyExtensions [
 
       # importlib-metadata has an incomplete dependency specification
       importlib-metadata = super.importlib-metadata.overridePythonAttrs (old: {
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ lib.optional self.python.isPy2 self.pathlib2;
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++
+          lib.optionals self.python.isPy2 [ self.pathlib2 ];
       });
 
       intreehooks = super.intreehooks.overridePythonAttrs (_: {
@@ -824,9 +842,9 @@ lib.composeManyExtensions [
       jira = super.jira.overridePythonAttrs (old: {
         inherit (pkgs.python3Packages.jira) patches;
         buildInputs = (old.buildInputs or [ ]) ++ [
-          self.pytestrunner
           self.cryptography
           self.pyjwt
+          self.pytestrunner
           self.setuptools-scm-git-archive
         ];
       });
@@ -858,7 +876,9 @@ lib.composeManyExtensions [
         then
           super.jsonschema.overridePythonAttrs
             (old: {
-              propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.importlib-resources ];
+              propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+                self.importlib-resources
+              ];
             })
         else super.jsonschema;
 
@@ -870,7 +890,10 @@ lib.composeManyExtensions [
       });
 
       jupyter-packaging = super.jupyter-packaging.overridePythonAttrs (old: {
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.setuptools self.wheel ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+          self.setuptools
+          self.wheel
+        ];
       });
 
       jupyter-server = super.jupyter-server.overridePythonAttrs (old: {
@@ -947,7 +970,6 @@ lib.composeManyExtensions [
           # https://github.com/numba/llvmlite/issues/93
           postPatch = ''
             substituteInPlace ffi/Makefile.linux --replace "-static-libstdc++" ""
-
             substituteInPlace llvmlite/tests/test_binding.py --replace "test_linux" "nope"
           '';
 
@@ -974,7 +996,13 @@ lib.composeManyExtensions [
             }) else super.lsassy;
 
       lxml = super.lxml.overridePythonAttrs (old: {
-        nativeBuildInputs = with pkgs.buildPackages; (old.nativeBuildInputs or [ ]) ++ [ pkg-config libxml2.dev libxslt.dev ] ++ lib.optionals stdenv.isDarwin [ xcodebuild ];
+        nativeBuildInputs = with pkgs.buildPackages; (old.nativeBuildInputs or [ ]) ++ [
+          libxml2.dev
+          libxslt.dev
+          pkg-config
+        ] ++ lib.optionals stdenv.isDarwin [
+          xcodebuild
+        ];
         buildInputs = with pkgs; (old.buildInputs or [ ]) ++ [ libxml2 libxslt ];
       });
 
@@ -1011,6 +1039,13 @@ lib.composeManyExtensions [
         {
           XDG_RUNTIME_DIR = "/tmp";
 
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+            pkg-config
+          ] ++ lib.optionals (lib.versionAtLeast super.matplotlib.version "3.5.0") [
+            self.setuptools-scm
+            self.setuptools-scm-git-archive
+          ];
+
           buildInputs = (old.buildInputs or [ ]) ++ [
             pkgs.which
           ] ++ lib.optionals enableGhostscript [
@@ -1026,17 +1061,19 @@ lib.composeManyExtensions [
             pkgs.libpng
             pkgs.freetype
             qhull
-          ]
-            ++ lib.optionals enableGtk3 [ pkgs.cairo self.pycairo pkgs.gtk3 pkgs.gobject-introspection self.pygobject3 ]
-            ++ lib.optionals enableTk [ pkgs.tcl pkgs.tk self.tkinter pkgs.libX11 ]
-            ++ lib.optionals enableQt [ self.pyqt5 ]
-          ;
-
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-            pkg-config
-          ] ++ lib.optionals (lib.versionAtLeast super.matplotlib.version "3.5.0") [
-            self.setuptools-scm
-            self.setuptools-scm-git-archive
+          ] ++ lib.optionals enableGtk3 [
+            pkgs.cairo
+            pkgs.gobject-introspection
+            pkgs.gtk3
+            self.pycairo
+            self.pygobject3
+          ] ++ lib.optionals enableTk [
+            pkgs.libX11
+            pkgs.tcl
+            pkgs.tk
+            self.tkinter
+          ] ++ lib.optionals enableQt [
+            self.pyqt5
           ];
 
           # Clang doesn't understand -fno-strict-overflow, and matplotlib builds with -Werror
@@ -1099,24 +1136,30 @@ lib.composeManyExtensions [
                 excludes = [ "pyproject.toml" ];
               })
             ];
-            buildInputs = (old.buildInputs or [ ]) ++ [ self.setuptools self.setuptools-scm self.setuptools-scm-git-archive ];
+            buildInputs = (old.buildInputs or [ ]) ++ [
+              self.setuptools
+              self.setuptools-scm
+              self.setuptools-scm-git-archive
+            ];
           }))
         else
           super.molecule.overridePythonAttrs (old: {
-            buildInputs = (old.buildInputs or [ ]) ++ [ self.setuptools self.setuptools-scm self.setuptools-scm-git-archive ];
+            buildInputs = (old.buildInputs or [ ]) ++ [
+              self.setuptools
+              self.setuptools-scm
+              self.setuptools-scm-git-archive
+            ];
           });
 
       mpi4py = super.mpi4py.overridePythonAttrs (old:
         let
           cfg = pkgs.writeTextFile {
             name = "mpi.cfg";
-            text = lib.generators.toINI
-              { }
-              {
-                mpi = {
-                  mpicc = "${pkgs.mpi.outPath}/bin/mpicc";
-                };
+            text = lib.generators.toINI { } {
+              mpi = {
+                mpicc = "${pkgs.mpi.outPath}/bin/mpicc";
               };
+            };
           };
         in
         {
@@ -1136,7 +1179,9 @@ lib.composeManyExtensions [
         buildInputs = (old.buildInputs or [ ]) ++ [
           self.types-typed-ast
           self.types-setuptools
-        ] ++ lib.optional (lib.strings.versionAtLeast old.version "0.990") self.types-psutil;
+        ] ++ lib.optionals (lib.strings.versionAtLeast old.version "0.990") [
+          self.types-psutil
+        ];
         # Compile mypy with mypyc, which makes mypy about 4 times faster. The compiled
         # version is also the default in the wheels on Pypi that include binaries.
         # is64bit: unfortunately the build would exhaust all possible memory on i686-linux.
@@ -1173,11 +1218,11 @@ lib.composeManyExtensions [
 
       netcdf4 = super.netcdf4.overridePythonAttrs (old: {
         propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
-          pkgs.zlib
-          pkgs.netcdf
-          pkgs.hdf5
           pkgs.curl
+          pkgs.hdf5
           pkgs.libjpeg
+          pkgs.netcdf
+          pkgs.zlib
         ];
 
         # Variables used to configure the build process
@@ -1194,17 +1239,15 @@ lib.composeManyExtensions [
           blasImplementation = lib.nameFromURL blas.name "-";
           cfg = pkgs.writeTextFile {
             name = "site.cfg";
-            text = lib.generators.toINI
-              { }
-              {
-                ${blasImplementation} = {
-                  include_dirs = "${blas}/include";
-                  library_dirs = "${blas}/lib";
-                } // lib.optionalAttrs (blasImplementation == "mkl") {
-                  mkl_libs = "mkl_rt";
-                  lapack_libs = "";
-                };
+            text = lib.generators.toINI { } {
+              ${blasImplementation} = {
+                include_dirs = "${blas}/include";
+                library_dirs = "${blas}/lib";
+              } // lib.optionalAttrs (blasImplementation == "mkl") {
+                mkl_libs = "mkl_rt";
+                lapack_libs = "";
               };
+            };
           };
         in
         {
@@ -1238,19 +1281,16 @@ lib.composeManyExtensions [
           pkgs.udev
         ] ++ lib.optionals (lib.versionAtLeast super.open3d.version "0.16.0") [
           pkgs.mesa
-          (
-            pkgs.symlinkJoin {
-              name = "llvm-with-ubuntu-compatible-symlink";
-              paths = [
-                pkgs.llvm_10.lib
-                (pkgs.runCommand "llvm-ubuntu-compatible-symlink" { }
-                  ''
-                    mkdir -p "$out/lib/";
-                    ln -s "${pkgs.llvm_10.lib}/lib/libLLVM-10.so" "$out/lib/libLLVM-10.so.1"
-                  ''
-                )
-              ];
-            })
+          (pkgs.symlinkJoin {
+            name = "llvm-with-ubuntu-compatible-symlink";
+            paths = [
+              pkgs.llvm_10.lib
+              (pkgs.runCommand "llvm-ubuntu-compatible-symlink" { } ''
+                mkdir -p "$out/lib/";
+                ln -s "${pkgs.llvm_10.lib}/lib/libLLVM-10.so" "$out/lib/libLLVM-10.so.1"
+              '')
+            ];
+          })
         ];
 
         # Patch the dylib in the binary distribution to point to the nix build of libomp
@@ -1297,11 +1337,11 @@ lib.composeManyExtensions [
 
       openvino = super.openvino.overridePythonAttrs (old: {
         buildInputs = (old.buildInputs or [ ]) ++ [
-          pkgs.ocl-icd
           pkgs.hwloc
-          pkgs.tbb
-          pkgs.numactl
           pkgs.libxml2
+          pkgs.numactl
+          pkgs.ocl-icd
+          pkgs.tbb
         ];
       });
 
@@ -1333,7 +1373,9 @@ lib.composeManyExtensions [
             pkgs.rustPlatform.cargoSetupHook
             pkgs.rustPlatform.maturinBuildHook
           ];
-          buildInputs = (old.buildInputs or [ ]) ++ lib.optional pkgs.stdenv.isDarwin pkgs.libiconv;
+          buildInputs = (old.buildInputs or [ ]) ++ lib.optionals pkgs.stdenv.isDarwin [
+            pkgs.libiconv
+          ];
         });
 
       osqp = super.osqp.overridePythonAttrs (old: {
@@ -1342,12 +1384,11 @@ lib.composeManyExtensions [
       });
 
       pandas = super.pandas.overridePythonAttrs (old: {
-
-        buildInputs = (old.buildInputs or [ ]) ++ lib.optional stdenv.isDarwin pkgs.libcxx;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [ pkgs.libcxx ];
 
         # Doesn't work with -Werror,-Wunused-command-line-argument
         # https://github.com/NixOS/nixpkgs/issues/39687
-        hardeningDisable = lib.optional stdenv.cc.isClang "strictoverflow";
+        hardeningDisable = lib.optionals stdenv.cc.isClang [ "strictoverflow" ];
 
         # For OSX, we need to add a dependency on libcxx, which provides
         # `complex.h` and other libraries that pandas depends on to build.
@@ -1358,7 +1399,6 @@ lib.composeManyExtensions [
             --replace "['pandas/src/klib', 'pandas/src']" \
                       "['pandas/src/klib', 'pandas/src', '$cpp_sdk']"
         '';
-
 
         enableParallelBuilding = true;
       });
@@ -1389,9 +1429,11 @@ lib.composeManyExtensions [
         in
         {
           buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.sqlite ];
-          propagatedBuildInputs = (old.propagatedBuildInputs or [ ])
-            ++ lib.optional withPostgres self.psycopg2
-            ++ lib.optional withMysql self.mysql-connector;
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ lib.optionals withPostgres [
+            self.psycopg2
+          ] ++ lib.optionals withMysql [
+            self.mysql-connector
+          ];
         }
       );
 
@@ -1405,12 +1447,22 @@ lib.composeManyExtensions [
           preConfigure = (old.preConfigure or "") + pkgs.python3.pkgs.pillow.preConfigure;
         in
         {
-          nativeBuildInputs = (old.nativeBuildInputs or [ ])
-            ++ [ pkg-config self.pytest-runner ];
-          buildInputs = with pkgs; (old.buildInputs or [ ])
-            ++ [ freetype libjpeg zlib libtiff libxcrypt libwebp tcl lcms2 ]
-            ++ lib.optionals (lib.versionAtLeast old.version "7.1.0") [ xorg.libxcb ]
-            ++ lib.optionals self.isPyPy [ tk xorg.libX11 ];
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config self.pytest-runner ];
+          buildInputs = with pkgs; (old.buildInputs or [ ]) ++ [
+            freetype
+            lcms2
+            libjpeg
+            libtiff
+            libwebp
+            libxcrypt
+            tcl
+            zlib
+          ] ++ lib.optionals (lib.versionAtLeast old.version "7.1.0") [
+            xorg.libxcb
+          ] ++ lib.optionals self.isPyPy [
+            tk
+            xorg.libX11
+          ];
           preConfigure = lib.optional (old.format != "wheel") preConfigure;
         }
       );
@@ -1455,9 +1507,7 @@ lib.composeManyExtensions [
       # Requires poetry which isn't available during bootstrap
       poetry-plugin-export = super.poetry-plugin-export.overridePythonAttrs (_: {
         dontUsePythonImportsCheck = true;
-        pipInstallFlags = [
-          "--no-deps"
-        ];
+        pipInstallFlags = [ "--no-deps" ];
       });
 
       portend = super.portend.overridePythonAttrs (old: {
@@ -1470,31 +1520,37 @@ lib.composeManyExtensions [
       });
 
       prophet = super.prophet.overridePythonAttrs (old: {
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.cmdstan self.cmdstanpy ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+          pkgs.cmdstan
+          self.cmdstanpy
+        ];
         PROPHET_REPACKAGE_CMDSTAN = "false";
         CMDSTAN = "${pkgs.cmdstan}";
       });
 
       psycopg2 = super.psycopg2.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.postgresql ];
-        buildInputs = (old.buildInputs or [ ]) ++ lib.optional stdenv.isDarwin pkgs.openssl;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [ pkgs.openssl ];
       });
 
       psycopg2-binary = super.psycopg2-binary.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.postgresql ];
-        buildInputs = (old.buildInputs or [ ]) ++ lib.optional stdenv.isDarwin pkgs.openssl;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [ pkgs.openssl ];
       });
 
       psycopg2cffi = super.psycopg2cffi.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.postgresql ];
-        buildInputs = (old.buildInputs or [ ]) ++ lib.optional stdenv.isDarwin pkgs.openssl;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [ pkgs.openssl ];
       });
 
       py-solc-x = super.py-solc-x.overridePythonAttrs (old: {
         preConfigure = ''
           substituteInPlace setup.py --replace \'setuptools-markdown\' ""
         '';
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.requests self.semantic-version ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+          self.requests
+          self.semantic-version
+        ];
       });
 
       pyarrow =
@@ -1519,10 +1575,7 @@ lib.composeManyExtensions [
               in
               if arrowCppVersion != pyArrowVersion then throw errorMessage else {
 
-                nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-                  pkg-config
-                  pkgs.cmake
-                ];
+                nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config pkgs.cmake ];
 
                 preBuild = ''
                   export PYARROW_PARALLEL=$NIX_BUILD_CORES
@@ -1557,9 +1610,9 @@ lib.composeManyExtensions [
           )
         ).overridePythonAttrs (old: {
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-            self.meson
-            pkgs.ninja
             pkg-config
+            pkgs.ninja
+            self.meson
           ];
 
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.cairo ];
@@ -1586,21 +1639,18 @@ lib.composeManyExtensions [
       });
 
       pygame = super.pygame.overridePythonAttrs (old: rec {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-          pkg-config
-          pkgs.SDL
-        ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config pkgs.SDL ];
 
         buildInputs = (old.buildInputs or [ ]) ++ [
           pkgs.SDL
           pkgs.SDL_image
           pkgs.SDL_mixer
           pkgs.SDL_ttf
-          pkgs.libpng
+          pkgs.freetype
           pkgs.libjpeg
+          pkgs.libpng
           pkgs.portmidi
           pkgs.xorg.libX11
-          pkgs.freetype
         ];
 
         # Tests fail because of no audio device and display.
@@ -1663,7 +1713,10 @@ lib.composeManyExtensions [
 
       pyopencl = super.pyopencl.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.numpy ];
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.ocl-icd pkgs.opencl-headers ];
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+          pkgs.ocl-icd
+          pkgs.opencl-headers
+        ];
       });
 
       pyopenssl = super.pyopenssl.overridePythonAttrs (old: {
@@ -1701,14 +1754,12 @@ lib.composeManyExtensions [
                 --replace "libpcsclite.so.1" \
                           "${lib.getLib pcsclite}/lib/libpcsclite${stdenv.hostPlatform.extensions.sharedLibrary}"
             '';
-          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ (
-            if withApplePCSC then [ PCSC ] else [ pcsclite ]
-          );
-          NIX_CFLAGS_COMPILE = lib.optionalString (! withApplePCSC)
-            "-I ${lib.getDev pcsclite}/include/PCSC";
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-            pkgs.swig
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.swig ];
+          propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+            (if withApplePCSC then PCSC else pcsclite)
           ];
+          NIX_CFLAGS_COMPILE = lib.optionalString (!withApplePCSC)
+            "-I ${lib.getDev pcsclite}/include/PCSC";
         }
       );
 
@@ -1764,9 +1815,9 @@ lib.composeManyExtensions [
           dontConfigure = true;
           dontWrapQtApps = true;
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+            qt5.full
             self.pyqt-builder
             self.sip
-            qt5.full
           ];
         });
 
@@ -1777,12 +1828,12 @@ lib.composeManyExtensions [
         super.pyqt5-qt5.overridePythonAttrs (old: {
           dontWrapQtApps = true;
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
+            pkgs.gtk3
+            pkgs.postgresql
+            pkgs.speechd
+            pkgs.unixODBC
             qt5.full
             qt5.qtgamepad # As of 2022-05-13 not a port of qt5.full
-            pkgs.gtk3
-            pkgs.speechd
-            pkgs.postgresql
-            pkgs.unixODBC
           ];
         });
 
@@ -1841,7 +1892,7 @@ lib.composeManyExtensions [
       });
 
       python-jose = super.python-jose.overridePythonAttrs (old: {
-        buildInputs = (old.buildInputs or []) ++ [ self.pytest-runner ];
+        buildInputs = (old.buildInputs or [ ]) ++ [ self.pytest-runner ];
       });
 
       python-magic = super.python-magic.overridePythonAttrs (old: {
@@ -1956,7 +2007,9 @@ lib.composeManyExtensions [
       });
 
       rtree = super.rtree.overridePythonAttrs (old: {
-        propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ]) ++ [ pkgs.libspatialindex ];
+        propagatedNativeBuildInputs = (old.propagatedNativeBuildInputs or [ ]) ++ [
+          pkgs.libspatialindex
+        ];
         postPatch = ''
           substituteInPlace rtree/finder.py --replace \
             "find_library('spatialindex_c')" \
@@ -1970,15 +2023,20 @@ lib.composeManyExtensions [
 
       scipy = super.scipy.overridePythonAttrs (old:
         if old.format != "wheel" then {
-          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++
-            [ pkgs.gfortran ] ++
-            lib.optionals (lib.versionAtLeast super.scipy.version "1.7.0") [ self.pythran ] ++
-            lib.optionals (lib.versionAtLeast super.scipy.version "1.9.0") [ self.meson-python pkg-config ];
-          dontUseMesonConfigure = true;
+          nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+            pkgs.gfortran
+          ] ++ lib.optionals (lib.versionAtLeast super.scipy.version "1.7.0") [
+            self.pythran
+          ] ++ lib.optionals (lib.versionAtLeast super.scipy.version "1.9.0") [
+            pkg-config
+            self.meson-python
+          ];
+          buildInputs = (old.buildInputs or [ ]) ++ [ self.numpy.blas ];
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ self.pybind11 ];
+
+          dontUseMesonConfigure = true;
           setupPyBuildFlags = [ "--fcompiler='gnu95'" ];
           enableParallelBuilding = true;
-          buildInputs = (old.buildInputs or [ ]) ++ [ self.numpy.blas ];
           preConfigure = ''
             sed -i '0,/from numpy.distutils.core/s//import setuptools;from numpy.distutils.core/' setup.py
             export NPY_NUM_BUILD_JOBS=$NIX_BUILD_CORES
@@ -1991,10 +2049,10 @@ lib.composeManyExtensions [
 
       scikit-image = super.scikit-image.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-          self.pythran
-          self.packaging
-          self.wheel
           self.numpy
+          self.packaging
+          self.pythran
+          self.wheel
         ];
       });
 
@@ -2006,12 +2064,16 @@ lib.composeManyExtensions [
         ] ++ lib.optionals stdenv.isLinux [
           pkgs.glibcLocales
         ];
-
         enableParallelBuilding = true;
       });
 
       secp256k1 = super.secp256k1.overridePythonAttrs (old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.pkgconfig pkgs.autoconf pkgs.automake pkgs.libtool ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+          pkgs.autoconf
+          pkgs.automake
+          pkgs.libtool
+          pkgs.pkgconfig
+        ];
         buildInputs = (old.buildInputs or [ ]) ++ [ self.pytest-runner ];
         doCheck = false;
         # Local setuptools versions like "x.y.post0" confuse an internal check
@@ -2083,7 +2145,11 @@ lib.composeManyExtensions [
       tables = super.tables.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
         buildInputs = (old.buildInputs or [ ]) ++ [ self.pywavelets ];
-        propagatedBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.hdf5 self.numpy self.numexpr ];
+        propagatedBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+          pkgs.hdf5
+          self.numexpr
+          self.numpy
+        ];
         HDF5_DIR = lib.getDev pkgs.hdf5;
       });
 
@@ -2096,15 +2162,15 @@ lib.composeManyExtensions [
         buildInputs = (old.buildInputs or [ ]) ++ [ self.wheel self.absl-py ];
         propagatedBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
           pkgs.hdf5
-          self.google-auth-oauthlib
-          self.tensorboard-plugin-wit
-          self.numpy
-          self.markdown
-          self.tensorboard-data-server
-          self.grpcio
-          self.protobuf
-          self.werkzeug
           self.absl-py
+          self.google-auth-oauthlib
+          self.grpcio
+          self.markdown
+          self.numpy
+          self.protobuf
+          self.tensorboard-data-server
+          self.tensorboard-plugin-wit
+          self.werkzeug
         ];
         HDF5_DIR = "${pkgs.hdf5}";
       });
@@ -2170,16 +2236,16 @@ lib.composeManyExtensions [
               # is explicitly disabled with USE_CUDA=0.
               find $out -name "*.so" -exec ${pkgs.patchelf}/bin/patchelf --remove-needed libcuda.so.1 {} \;
             '';
-            buildInputs = (old.buildInputs or [ ])
-              ++ [ self.typing-extensions ]
-              ++ lib.optionals enableCuda [
+            buildInputs = (old.buildInputs or [ ]) ++ [
+              self.typing-extensions
+            ] ++ lib.optionals enableCuda [
               pkgs.linuxPackages.nvidia_x11
               pkgs.nccl.dev
               pkgs.nccl.out
             ];
             propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
-              self.numpy
               self.future
+              self.numpy
               self.typing-extensions
             ];
           })
@@ -2194,9 +2260,9 @@ lib.composeManyExtensions [
 
           # without that autoPatchelfHook will fail because cudatoolkit is not in LD_LIBRARY_PATH
           autoPatchelfIgnoreMissingDeps = true;
-          buildInputs = (old.buildInputs or [ ])
-            ++ [ self.torch ]
-            ++ lib.optionals enableCuda [
+          buildInputs = (old.buildInputs or [ ]) ++ [
+            self.torch
+          ] ++ lib.optionals enableCuda [
             cudatoolkit
           ];
           preConfigure =
@@ -2209,9 +2275,7 @@ lib.composeManyExtensions [
         { };
 
       typed_ast = super.typed-ast.overridePythonAttrs (old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
-          self.pytest-runner
-        ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ self.pytest-runner ];
       });
 
       urwidtrees = super.urwidtrees.overridePythonAttrs (old: {
@@ -2284,8 +2348,8 @@ lib.composeManyExtensions [
             pkgs.rustPlatform.maturinBuildHook
           ];
           buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [
-            pkgs.darwin.apple_sdk.frameworks.Security
             pkgs.darwin.apple_sdk.frameworks.CoreServices
+            pkgs.darwin.apple_sdk.frameworks.Security
             pkgs.libiconv
           ];
         });
@@ -2336,8 +2400,9 @@ lib.composeManyExtensions [
             } else old;
 
       psutil = super.psutil.overridePythonAttrs (old: {
-        buildInputs = (old.buildInputs or [ ]) ++
-          lib.optional stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.IOKit;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals stdenv.isDarwin [
+          pkgs.darwin.apple_sdk.frameworks.IOKit
+        ];
       });
 
       sentencepiece = super.sentencepiece.overridePythonAttrs (old: {
@@ -2373,8 +2438,9 @@ lib.composeManyExtensions [
       });
 
       watchdog = super.watchdog.overrideAttrs (old: {
-        buildInputs = (old.buildInputs or [ ])
-          ++ lib.optional pkgs.stdenv.isDarwin pkgs.darwin.apple_sdk.frameworks.CoreServices;
+        buildInputs = (old.buildInputs or [ ]) ++ lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.darwin.apple_sdk.frameworks.CoreServices
+        ];
       });
 
       # pyee cannot find `vcversioner` and other "setup requirements", so it tries to
@@ -2414,29 +2480,29 @@ lib.composeManyExtensions [
           DOXYGEN = "${pkgs.doxygen}/bin/doxygen";
 
           nativeBuildInputs = with pkgs; (old.nativeBuildInputs or [ ]) ++ [
-            which
+            autoPatchelfHook
             doxygen
             gtk3
             pkg-config
-            autoPatchelfHook
+            which
           ];
 
           buildInputs = with pkgs; (old.buildInputs or [ ]) ++ [
-            gtk3
-            webkitgtk
-            ncurses
             SDL2
-            xorg.libXinerama
-            xorg.libSM
-            xorg.libXxf86vm
-            xorg.libXtst
-            xorg.xorgproto
-            gst_all_1.gstreamer
             gst_all_1.gst-plugins-base
-            libGLU
+            gst_all_1.gstreamer
+            gtk3
             libGL
+            libGLU
             libglvnd
             mesa
+            ncurses
+            webkitgtk
+            xorg.libSM
+            xorg.libXinerama
+            xorg.libXtst
+            xorg.libXxf86vm
+            xorg.xorgproto
           ];
 
           buildPhase = ''
@@ -2496,9 +2562,9 @@ lib.composeManyExtensions [
       });
 
       wcwidth = super.wcwidth.overridePythonAttrs (old: {
-        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++
-          lib.optional self.isPy27 (self.backports-functools-lru-cache or self.backports_functools_lru_cache)
-        ;
+        propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ lib.optionals self.isPy27 [
+          (self.backports-functools-lru-cache or self.backports_functools_lru_cache)
+        ];
       });
 
       wtforms = super.wtforms.overridePythonAttrs (old: {
