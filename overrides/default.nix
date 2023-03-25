@@ -54,10 +54,16 @@ in
 lib.composeManyExtensions [
   # NixOps
   (self: super:
-    lib.mapAttrs (_: v: addBuildSystem { inherit self; drv = v; attr = "poetry"; }) (lib.filterAttrs (n: _: lib.strings.hasPrefix "nixops" n) super)
+    lib.mapAttrs
+      (_: v: addBuildSystem { inherit self; drv = v; attr = "poetry"; })
+      (lib.filterAttrs (n: _: lib.strings.hasPrefix "nixops" n) super)
     // {
       # NixOps >=2 dependency
-      nixos-modules-contrib = addBuildSystem { inherit self; drv = super.nixos-modules-contrib; attr = "poetry"; };
+      nixos-modules-contrib = addBuildSystem {
+        inherit self;
+        drv = super.nixos-modules-contrib;
+        attr = "poetry";
+      };
     }
   )
 
@@ -67,13 +73,9 @@ lib.composeManyExtensions [
       buildSystems = lib.importJSON ./build-systems.json;
     in
     lib.mapAttrs
-      (attr: systems: builtins.foldl'
-        (drv: attr: addBuildSystem {
-          inherit drv self attr;
-        })
-        super.${attr}
-        systems)
-      buildSystems)
+      (attr: builtins.foldl' (drv: attr: addBuildSystem { inherit drv self attr; }) super.${attr})
+      buildSystems
+  )
 
   # Build fixes
   (self: super:
@@ -100,8 +102,8 @@ lib.composeManyExtensions [
       });
 
       ansible = super.ansible.overridePythonAttrs (old: {
-        # Inputs copied from nixpkgs as ansible doesn't specify it's dependencies
-        # in a correct manner.
+        # Inputs copied from nixpkgs as ansible doesn't specify it's dependencies in a correct
+        # manner.
         propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
           self.dnspython
           self.dopy
@@ -172,7 +174,9 @@ lib.composeManyExtensions [
             "4.0.0" = "sha256-HvfRLyUhlXVuvxWrtSDKx3rMKJbjvuiMcDY6g+pYFS0=";
             "4.0.1" = "sha256-lDWX69YENZFMu7pyBmavUZaalGvFqbHSHfkwkzmDQaY=";
           }.${version} or (
-            lib.warn "Unknown bcrypt version: '${version}'. Please update getCargoHash." lib.fakeHash
+            lib.warn
+              "Unknown bcrypt version: '${version}'. Please update getCargoHash."
+              lib.fakeHash
           );
         in
         super.bcrypt.overridePythonAttrs (old: {
@@ -257,12 +261,15 @@ lib.composeManyExtensions [
           super.cffi.overridePythonAttrs (old: {
             nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config ];
             buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.libffi ];
-            prePatch = (old.prePatch or "") + lib.optionalString (!(old.src.isWheel or false) && stdenv.isDarwin) ''
-              # Remove setup.py impurities
-              substituteInPlace setup.py --replace "'-iwithsysroot/usr/include/ffi'" ""
-              substituteInPlace setup.py --replace "'/usr/include/ffi'," ""
-              substituteInPlace setup.py --replace '/usr/include/libffi' '${lib.getDev pkgs.libffi}/include'
-            '';
+            prePatch = (old.prePatch or "") +
+              lib.optionalString (!(old.src.isWheel or false) && stdenv.isDarwin) ''
+                # Remove setup.py impurities
+                substituteInPlace setup.py --replace "'-iwithsysroot/usr/include/ffi'" ""
+                substituteInPlace setup.py --replace "'/usr/include/ffi'," ""
+                substituteInPlace setup.py --replace \
+                  '/usr/include/libffi' \
+                  '${lib.getDev pkgs.libffi}/include'
+              '';
 
           })
         );
@@ -327,7 +334,9 @@ lib.composeManyExtensions [
             "39.0.0" = "sha256-clorC0NtGukpE3DnZ84MSdGhJN+qC89DZPITZFuL01Q=";
             "39.0.2" = "sha256-Admz48/GS2t8diz611Ciin1HKQEyMDEwHxTpJ5tZ1ZA=";
           }.${version} or (
-            lib.warn "Unknown cryptography version: '${version}'. Please update getCargoHash." lib.fakeHash
+            lib.warn
+              "Unknown cryptography version: '${version}'. Please update getCargoHash."
+              lib.fakeHash
           );
           sha256 = getCargoHash super.cryptography.version;
           isWheel = lib.hasSuffix ".whl" super.cryptography.src;
@@ -394,7 +403,11 @@ lib.composeManyExtensions [
       });
 
       dbt-extractor = super.dbt-extractor.overridePythonAttrs (old: {
-        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.cargo pkgs.rustc pkgs.maturin ];
+        nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
+          pkgs.cargo
+          pkgs.maturin
+          pkgs.rustc
+        ];
       });
 
       dbus-python = super.dbus-python.overridePythonAttrs (old: {
@@ -402,7 +415,9 @@ lib.composeManyExtensions [
 
         postPatch = (old.postPatch or "") + ''
           substituteInPlace ./configure --replace /usr/bin/file ${pkgs.file}/bin/file
-          substituteInPlace ./dbus-python.pc.in --replace 'Cflags: -I''${includedir}' 'Cflags: -I''${includedir}/dbus-1.0'
+          substituteInPlace ./dbus-python.pc.in --replace \
+            'Cflags: -I''${includedir}' \
+            'Cflags: -I''${includedir}/dbus-1.0'
         '';
 
         configureFlags = (old.configureFlags or [ ]) ++ [
@@ -411,9 +426,11 @@ lib.composeManyExtensions [
 
         preConfigure = lib.concatStringsSep "\n" [
           (old.preConfigure or "")
-          (if (lib.versionAtLeast stdenv.hostPlatform.darwinMinVersion "11" && stdenv.isDarwin) then ''
-            MACOSX_DEPLOYMENT_TARGET=10.16
-          '' else "")
+          (
+            if (lib.versionAtLeast stdenv.hostPlatform.darwinMinVersion "11" && stdenv.isDarwin)
+            then "MACOSX_DEPLOYMENT_TARGET=10.16"
+            else ""
+          )
         ];
 
         preBuild = (old.preBuild or "") + ''
@@ -494,12 +511,11 @@ lib.composeManyExtensions [
 
       # Setuptools >= 60 broke build_py_2to3
       docutils =
-        if lib.versionOlder super.docutils.version "0.16" && lib.versionAtLeast super.setuptools.version "60" then
-          (
-            super.docutils.overridePythonAttrs (_: {
-              SETUPTOOLS_USE_DISTUTILS = "stdlib";
-            })
-          ) else super.docutils;
+        if
+          lib.versionOlder super.docutils.version "0.16" &&
+          lib.versionAtLeast super.setuptools.version "60"
+        then super.docutils.overridePythonAttrs (_: { SETUPTOOLS_USE_DISTUTILS = "stdlib"; })
+        else super.docutils;
 
       duckdb = super.duckdb.overridePythonAttrs (old: {
         postPatch = lib.optionalString (!(old.src.isWheel or false)) ''
@@ -569,7 +585,9 @@ lib.composeManyExtensions [
 
       file-magic = super.file-magic.overridePythonAttrs (_: {
         postPatch = ''
-          substituteInPlace magic.py --replace "find_library('magic')" "'${pkgs.file}/lib/libmagic${pkgs.stdenv.hostPlatform.extensions.sharedLibrary}'"
+          substituteInPlace magic.py --replace \
+            "find_library('magic')" \
+            "'${pkgs.file}/lib/libmagic${pkgs.stdenv.hostPlatform.extensions.sharedLibrary}'"
         '';
       });
 
@@ -670,8 +688,9 @@ lib.composeManyExtensions [
 
       h3 = super.h3.overridePythonAttrs (old: {
         preBuild = (old.preBuild or "") + ''
-          substituteInPlace h3/h3.py \
-            --replace "'{}/{}'.format(_dirname, libh3_path)" '"${pkgs.h3}/lib/libh3${pkgs.stdenv.hostPlatform.extensions.sharedLibrary}"'
+          substituteInPlace h3/h3.py --replace \
+            "'{}/{}'.format(_dirname, libh3_path)" \
+            '"${pkgs.h3}/lib/libh3${pkgs.stdenv.hostPlatform.extensions.sharedLibrary}"'
         '';
       });
 
@@ -734,7 +753,8 @@ lib.composeManyExtensions [
       });
 
       icecream = super.icecream.overridePythonAttrs (_: {
-        #  # ERROR: Could not find a version that satisfies the requirement executing>=0.3.1 (from icecream) (from versions: none)
+        # ERROR: Could not find a version that satisfies the requirement executing>=0.3.1 (from
+        # icecream) (from versions: none)
         postPatch = ''
           substituteInPlace setup.py --replace 'executing>=0.3.1' 'executing'
         '';
@@ -926,7 +946,8 @@ lib.composeManyExtensions [
 
         postPatch = ''
           substituteInPlace libarchive/library.py --replace \
-            "_FILEPATH = find_and_load_library()" "_FILEPATH = '${pkgs.libarchive.lib}/lib/libarchive${stdenv.hostPlatform.extensions.sharedLibrary}'"
+            "_FILEPATH = find_and_load_library()" \
+            "_FILEPATH = '${pkgs.libarchive.lib}/lib/libarchive${stdenv.hostPlatform.extensions.sharedLibrary}'"
         '';
       });
 
@@ -946,22 +967,27 @@ lib.composeManyExtensions [
       llvmlite = super.llvmlite.overridePythonAttrs (old:
         let
           llvm =
-            if lib.versionAtLeast old.version "0.37.0" then
-              pkgs.llvmPackages_11.llvm
-            else if (lib.versionOlder old.version "0.37.0" && lib.versionAtLeast old.version "0.34.0") then
-              pkgs.llvmPackages_10.llvm
-            else if (lib.versionOlder old.version "0.34.0" && lib.versionAtLeast old.version "0.33.0") then
-              pkgs.llvmPackages_9.llvm
-            else if (lib.versionOlder old.version "0.33.0" && lib.versionAtLeast old.version "0.29.0") then
-              pkgs.llvmPackages_8.llvm
-            else if (lib.versionOlder old.version "0.28.0" && lib.versionAtLeast old.version "0.27.0") then
-              pkgs.llvmPackages_7.llvm
-            else if (lib.versionOlder old.version "0.27.0" && lib.versionAtLeast old.version "0.23.0") then
-              pkgs.llvmPackages_6.llvm
-            else if (lib.versionOlder old.version "0.23.0" && lib.versionAtLeast old.version "0.21.0") then
-              pkgs.llvmPackages_5.llvm
-            else
-              pkgs.llvm; # Likely to fail.
+            if lib.versionAtLeast old.version "0.37.0"
+            then pkgs.llvmPackages_11.llvm
+            else if
+              (lib.versionOlder old.version "0.37.0" && lib.versionAtLeast old.version "0.34.0")
+            then pkgs.llvmPackages_10.llvm
+            else if
+              (lib.versionOlder old.version "0.34.0" && lib.versionAtLeast old.version "0.33.0")
+            then pkgs.llvmPackages_9.llvm
+            else if
+              (lib.versionOlder old.version "0.33.0" && lib.versionAtLeast old.version "0.29.0")
+            then pkgs.llvmPackages_8.llvm
+            else if
+              (lib.versionOlder old.version "0.28.0" && lib.versionAtLeast old.version "0.27.0")
+            then pkgs.llvmPackages_7.llvm
+            else if
+              (lib.versionOlder old.version "0.27.0" && lib.versionAtLeast old.version "0.23.0")
+            then pkgs.llvmPackages_6.llvm
+            else if
+              (lib.versionOlder old.version "0.23.0" && lib.versionAtLeast old.version "0.21.0")
+            then pkgs.llvmPackages_5.llvm
+            else pkgs.llvm; # Likely to fail.
         in
         {
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.llvm ];
@@ -988,8 +1014,8 @@ lib.composeManyExtensions [
         if super.lsassy.version == "3.1.1" then
           super.lsassy.overridePythonAttrs
             (old: {
-              # pyproject.toml contains a constraint `rich = "^10.6.0"` which is not replicated in setup.py
-              # hence pypi misses it and poetry pins rich to 11.0.0
+              # pyproject.toml contains a constraint `rich = "^10.6.0"` which is not replicated in
+              # setup.py, hence pypi misses it and poetry pins rich to 11.0.0
               preConfigure = (old.preConfigure or "") + ''
                 rm pyproject.toml
               '';
@@ -1007,7 +1033,9 @@ lib.composeManyExtensions [
       });
 
       markupsafe = super.markupsafe.overridePythonAttrs (old: {
-        src = old.src.override { pname = builtins.replaceStrings [ "markupsafe" ] [ "MarkupSafe" ] old.pname; };
+        src = old.src.override {
+          pname = builtins.replaceStrings [ "markupsafe" ] [ "MarkupSafe" ] old.pname;
+        };
       });
 
       matplotlib = super.matplotlib.overridePythonAttrs (old:
@@ -1193,22 +1221,39 @@ lib.composeManyExtensions [
       } // lib.optionalAttrs (old.format != "wheel") {
         # FIXME: Remove patch after upstream has decided the proper solution.
         #        https://github.com/python/mypy/pull/11143
-        patches = (old.patches or [ ]) ++ lib.optionals ((lib.strings.versionAtLeast old.version "0.900") && lib.strings.versionOlder old.version "0.940") [
-          (pkgs.fetchpatch {
-            url = "https://github.com/python/mypy/commit/f1755259d54330cd087cae763cd5bbbff26e3e8a.patch";
-            sha256 = "sha256-5gPahX2X6+/qUaqDQIGJGvh9lQ2EDtks2cpQutgbOHk=";
-          })
-        ] ++ lib.optionals ((lib.strings.versionAtLeast old.version "0.940") && lib.strings.versionOlder old.version "0.960") [
-          (pkgs.fetchpatch {
-            url = "https://github.com/python/mypy/commit/e7869f05751561958b946b562093397027f6d5fa.patch";
-            sha256 = "sha256-waIZ+m3tfvYE4HJ8kL6rN/C4fMjvLEe9UoPbt9mHWIM=";
-          })
-        ] ++ lib.optionals ((lib.strings.versionAtLeast old.version "0.960") && (lib.strings.versionOlder old.version "0.971")) [
-          (pkgs.fetchpatch {
-            url = "https://github.com/python/mypy/commit/2004ae023b9d3628d9f09886cbbc20868aee8554.patch";
-            sha256 = "sha256-y+tXvgyiECO5+66YLvaje8Bz5iPvfWNIBJcsnZ2nOdI=";
-          })
-        ];
+        patches = (old.patches or [ ]) ++ (
+          if
+            lib.strings.versionAtLeast old.version "0.900" &&
+              lib.strings.versionOlder old.version "0.940"
+          then
+            [
+              (pkgs.fetchpatch {
+                url = "https://github.com/python/mypy/commit/f1755259d54330cd087cae763cd5bbbff26e3e8a.patch";
+                sha256 = "sha256-5gPahX2X6+/qUaqDQIGJGvh9lQ2EDtks2cpQutgbOHk=";
+              })
+            ]
+          else if
+            lib.strings.versionAtLeast old.version "0.940" &&
+              lib.strings.versionOlder old.version "0.960"
+          then
+            [
+              (pkgs.fetchpatch {
+                url = "https://github.com/python/mypy/commit/e7869f05751561958b946b562093397027f6d5fa.patch";
+                sha256 = "sha256-waIZ+m3tfvYE4HJ8kL6rN/C4fMjvLEe9UoPbt9mHWIM=";
+              })
+            ]
+          else if
+            lib.strings.versionAtLeast old.version "0.960" &&
+              lib.strings.versionOlder old.version "0.971"
+          then
+            [
+              (pkgs.fetchpatch {
+                url = "https://github.com/python/mypy/commit/2004ae023b9d3628d9f09886cbbc20868aee8554.patch";
+                sha256 = "sha256-y+tXvgyiECO5+66YLvaje8Bz5iPvfWNIBJcsnZ2nOdI=";
+              })
+            ]
+          else [ ]
+        );
       });
 
       mysqlclient = super.mysqlclient.overridePythonAttrs (old: {
@@ -1294,9 +1339,14 @@ lib.composeManyExtensions [
         ];
 
         # Patch the dylib in the binary distribution to point to the nix build of libomp
-        preFixup = lib.optionalString (stdenv.isDarwin && lib.versionAtLeast super.open3d.version "0.16.0") ''
-          install_name_tool -change /opt/homebrew/opt/libomp/lib/libomp.dylib ${pkgs.llvmPackages.openmp}/lib/libomp.dylib $out/lib/python*/site-packages/open3d/cpu/pybind.cpython-*-darwin.so
-        '';
+        preFixup = lib.optionalString
+          (stdenv.isDarwin && lib.versionAtLeast super.open3d.version "0.16.0")
+          ''
+            install_name_tool -change \
+              /opt/homebrew/opt/libomp/lib/libomp.dylib \
+              ${pkgs.llvmPackages.openmp}/lib/libomp.dylib \
+              $out/lib/python*/site-packages/open3d/cpu/pybind.cpython-*-darwin.so
+          '';
 
         # TODO(Sem Mulder): Add overridable flags for CUDA/PyTorch/Tensorflow support.
         autoPatchelfIgnoreMissingDeps = true;
@@ -1326,13 +1376,18 @@ lib.composeManyExtensions [
 
       opencv-python = super.opencv-python.overridePythonAttrs self._opencv-python-override;
 
-      opencv-python-headless = super.opencv-python-headless.overridePythonAttrs self._opencv-python-override;
+      opencv-python-headless =
+        super.opencv-python-headless.overridePythonAttrs self._opencv-python-override;
 
-      opencv-contrib-python = super.opencv-contrib-python.overridePythonAttrs self._opencv-python-override;
+      opencv-contrib-python =
+        super.opencv-contrib-python.overridePythonAttrs self._opencv-python-override;
 
       openexr = super.openexr.overridePythonAttrs (old: {
         buildInputs = (old.buildInputs or [ ]) ++ [ pkgs.openexr pkgs.ilmbase ];
-        NIX_CFLAGS_COMPILE = [ "-I${pkgs.openexr.dev}/include/OpenEXR" "-I${pkgs.ilmbase.dev}/include/OpenEXR" ];
+        NIX_CFLAGS_COMPILE = [
+          "-I${pkgs.openexr.dev}/include/OpenEXR"
+          "-I${pkgs.ilmbase.dev}/include/OpenEXR"
+        ];
       });
 
       openvino = super.openvino.overridePythonAttrs (old: {
@@ -1360,7 +1415,9 @@ lib.composeManyExtensions [
             "3.8.6" = "sha256-8T//q6nQoZhh8oJWDCeQf3gYRew58dXAaxkYELY4CJM=";
             "3.8.7" = "sha256-JBO8nl0sC+XIn17vI7hC8+nA1HYI9jfvZrl9nCE3k1s=";
           }.${version} or (
-            lib.warn "Unknown orjson version: '${version}'. Please update getCargoHash." lib.fakeHash
+            lib.warn
+              "Unknown orjson version: '${version}'. Please update getCargoHash."
+              lib.fakeHash
           );
         in
         super.orjson.overridePythonAttrs (old: {
@@ -1554,60 +1611,60 @@ lib.composeManyExtensions [
       });
 
       pyarrow =
-        if (!super.pyarrow.src.isWheel or false) && lib.versionAtLeast super.pyarrow.version "0.16.0" then
-          super.pyarrow.overridePythonAttrs
-            (old:
-              let
-                parseMinor = drv: lib.concatStringsSep "." (lib.take 2 (lib.splitVersion drv.version));
+        if
+          (!super.pyarrow.src.isWheel or false) && lib.versionAtLeast super.pyarrow.version "0.16.0"
+        then
+          (super.pyarrow.overridePythonAttrs (old:
+            let
+              parseMinor = drv:
+                lib.concatStringsSep "." (lib.take 2 (lib.splitVersion drv.version));
 
-                # Starting with nixpkgs revision f149c7030a7, pyarrow takes "python3" as an argument
-                # instead of "python". Below we inspect function arguments to maintain compatibilitiy.
-                _arrow-cpp = pkgs.arrow-cpp.override (
-                  builtins.intersectAttrs
-                    (lib.functionArgs pkgs.arrow-cpp.override)
-                    { inherit (self) python; python3 = self.python; }
-                );
+              # Starting with nixpkgs revision f149c7030a7, pyarrow takes "python3" as an argument
+              # instead of "python". Below we inspect function arguments to maintain compatibilitiy.
+              _arrow-cpp = pkgs.arrow-cpp.override (
+                builtins.intersectAttrs
+                  (lib.functionArgs pkgs.arrow-cpp.override)
+                  { inherit (self) python; python3 = self.python; }
+              );
 
-                ARROW_HOME = _arrow-cpp;
-                arrowCppVersion = parseMinor _arrow-cpp;
-                pyArrowVersion = parseMinor super.pyarrow;
-                errorMessage = "arrow-cpp version (${arrowCppVersion}) mismatches pyarrow version (${pyArrowVersion})";
-              in
-              if arrowCppVersion != pyArrowVersion then throw errorMessage else {
+              ARROW_HOME = _arrow-cpp;
+              arrowCppVersion = parseMinor _arrow-cpp;
+              pyArrowVersion = parseMinor super.pyarrow;
+              errorMessage = "arrow-cpp version (${arrowCppVersion}) mismatches pyarrow version (${pyArrowVersion})";
+            in
+            if arrowCppVersion != pyArrowVersion then throw errorMessage else {
 
-                nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config pkgs.cmake ];
+              nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkg-config pkgs.cmake ];
 
-                preBuild = ''
-                  export PYARROW_PARALLEL=$NIX_BUILD_CORES
-                '';
+              preBuild = ''
+                export PYARROW_PARALLEL=$NIX_BUILD_CORES
+              '';
 
-                PARQUET_HOME = _arrow-cpp;
-                inherit ARROW_HOME;
+              PARQUET_HOME = _arrow-cpp;
+              inherit ARROW_HOME;
 
-                PYARROW_BUILD_TYPE = "release";
-                PYARROW_WITH_FLIGHT = if _arrow-cpp.enableFlight then 1 else 0;
-                PYARROW_WITH_DATASET = 1;
-                PYARROW_WITH_PARQUET = 1;
-                PYARROW_CMAKE_OPTIONS = [
-                  "-DCMAKE_INSTALL_RPATH=${ARROW_HOME}/lib"
+              PYARROW_BUILD_TYPE = "release";
+              PYARROW_WITH_FLIGHT = if _arrow-cpp.enableFlight then 1 else 0;
+              PYARROW_WITH_DATASET = 1;
+              PYARROW_WITH_PARQUET = 1;
+              PYARROW_CMAKE_OPTIONS = [
+                "-DCMAKE_INSTALL_RPATH=${ARROW_HOME}/lib"
 
-                  # This doesn't use setup hook to call cmake so we need to workaround #54606
-                  # ourselves
-                  "-DCMAKE_POLICY_DEFAULT_CMP0025=NEW"
-                ];
+                # This doesn't use setup hook to call cmake so we need to workaround #54606
+                # ourselves
+                "-DCMAKE_POLICY_DEFAULT_CMP0025=NEW"
+              ];
 
-                dontUseCmakeConfigure = true;
-              }
-            ) else
-          super.pyarrow;
+              dontUseCmakeConfigure = true;
+            }
+          ))
+        else super.pyarrow;
 
       pycairo = (
         drv: (
-          drv.overridePythonAttrs (
-            _: {
-              format = "other";
-            }
-          )
+          drv.overridePythonAttrs (_: {
+            format = "other";
+          })
         ).overridePythonAttrs (old: {
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
             pkg-config
@@ -1656,22 +1713,22 @@ lib.composeManyExtensions [
         # Tests fail because of no audio device and display.
         doCheck = false;
         preConfigure = ''
-                  sed \
-                    -e "s/origincdirs = .*/origincdirs = []/" \
-                    -e "s/origlibdirs = .*/origlibdirs = []/" \
-                    -e "/'\/lib\/i386-linux-gnu', '\/lib\/x86_64-linux-gnu']/d" \
-                    -e "/\/include\/smpeg/d" \
-                    -i buildconfig/config_unix.py
-                  ${lib.concatMapStrings
-          (dep: ''
-                    sed \
-                      -e "/origincdirs =/a\        origincdirs += ['${lib.getDev dep}/include']" \
-                      -e "/origlibdirs =/a\        origlibdirs += ['${lib.getLib dep}/lib']" \
-                      -i buildconfig/config_unix.py
-                  '')
-          buildInputs
-                  }
-                  LOCALBASE=/ ${self.python.interpreter} buildconfig/config.py
+          sed \
+            -e "s/origincdirs = .*/origincdirs = []/" \
+            -e "s/origlibdirs = .*/origlibdirs = []/" \
+            -e "/'\/lib\/i386-linux-gnu', '\/lib\/x86_64-linux-gnu']/d" \
+            -e "/\/include\/smpeg/d" \
+            -i buildconfig/config_unix.py
+          ${lib.concatMapStrings
+            (dep: ''
+              sed \
+                -e "/origincdirs =/a\        origincdirs += ['${lib.getDev dep}/include']" \
+                -e "/origlibdirs =/a\        origlibdirs += ['${lib.getLib dep}/lib']" \
+                -i buildconfig/config_unix.py
+            '')
+            buildInputs
+          }
+          LOCALBASE=/ ${self.python.interpreter} buildconfig/config.py
         '';
       });
 
@@ -1692,12 +1749,15 @@ lib.composeManyExtensions [
       pymediainfo = super.pymediainfo.overridePythonAttrs (old: {
         postPatch = (old.postPatch or "") + ''
           substituteInPlace pymediainfo/__init__.py \
-            --replace "libmediainfo.0.dylib" \
-                      "${pkgs.libmediainfo}/lib/libmediainfo.0${stdenv.hostPlatform.extensions.sharedLibrary}" \
-            --replace "libmediainfo.dylib" \
-                      "${pkgs.libmediainfo}/lib/libmediainfo${stdenv.hostPlatform.extensions.sharedLibrary}" \
-            --replace "libmediainfo.so.0" \
-                      "${pkgs.libmediainfo}/lib/libmediainfo${stdenv.hostPlatform.extensions.sharedLibrary}.0"
+            --replace \
+              "libmediainfo.0.dylib" \
+              "${pkgs.libmediainfo}/lib/libmediainfo.0${stdenv.hostPlatform.extensions.sharedLibrary}" \
+            --replace \
+              "libmediainfo.dylib" \
+              "${pkgs.libmediainfo}/lib/libmediainfo${stdenv.hostPlatform.extensions.sharedLibrary}" \
+            --replace \
+              "libmediainfo.so.0" \
+              "${pkgs.libmediainfo}/lib/libmediainfo${stdenv.hostPlatform.extensions.sharedLibrary}.0"
         '';
       });
 
@@ -1750,9 +1810,9 @@ lib.composeManyExtensions [
                 --replace "/System/Library/Frameworks/PCSC.framework/PCSC" \
                           "${PCSC}/Library/Frameworks/PCSC.framework/PCSC"
             '' else ''
-              substituteInPlace smartcard/scard/winscarddll.c \
-                --replace "libpcsclite.so.1" \
-                          "${lib.getLib pcsclite}/lib/libpcsclite${stdenv.hostPlatform.extensions.sharedLibrary}"
+              substituteInPlace smartcard/scard/winscarddll.c --replace \
+                "libpcsclite.so.1" \
+                "${lib.getLib pcsclite}/lib/libpcsclite${stdenv.hostPlatform.extensions.sharedLibrary}"
             '';
           nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.swig ];
           propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [
@@ -1870,14 +1930,13 @@ lib.composeManyExtensions [
         buildInputs = (old.buildInputs or [ ]) ++ [ self.pytest-runner ];
       });
 
-      # pytest-splinter seems to put a .marker file in an empty directory
-      # presumably so it's tracked by and can be installed with MANIFEST.in, see
+      # pytest-splinter seems to put a .marker file in an empty directory presumably so it's tracked
+      # by and can be installed with MANIFEST.in, see
       # https://github.com/pytest-dev/pytest-splinter/commit/a48eeef662f66ff9d3772af618748e73211a186b
       #
-      # This directory then gets used as an empty initial profile directory and is
-      # zipped up. But if the .marker file is in the Nix store, it has the
-      # creation date of 1970, and Zip doesn't work with such old files, so it
-      # fails at runtime!
+      # This directory then gets used as an empty initial profile directory and is zipped up. But if
+      # the .marker file is in the Nix store, it has the creation date of 1970, and Zip doesn't work
+      # with such old files, so it fails at runtime!
       #
       # We fix this here by just removing the file after the installation
       #
@@ -1968,7 +2027,9 @@ lib.composeManyExtensions [
 
       scaleapi = super.scaleapi.overridePythonAttrs (_: {
         postPatch = ''
-          substituteInPlace setup.py --replace "install_requires = ['requests>=2.4.2', 'enum34']" "install_requires = ['requests>=2.4.2']" || true
+          substituteInPlace setup.py --replace \
+            "install_requires = ['requests>=2.4.2', 'enum34']" \
+            "install_requires = ['requests>=2.4.2']" || true
         '';
       });
 
@@ -2038,7 +2099,9 @@ lib.composeManyExtensions [
           setupPyBuildFlags = [ "--fcompiler='gnu95'" ];
           enableParallelBuilding = true;
           preConfigure = ''
-            sed -i '0,/from numpy.distutils.core/s//import setuptools;from numpy.distutils.core/' setup.py
+            sed -i \
+              '0,/from numpy.distutils.core/s//import setuptools;from numpy.distutils.core/' \
+              setup.py
             export NPY_NUM_BUILD_JOBS=$NIX_BUILD_CORES
           '';
           preBuild = lib.optional (lib.versionOlder super.scipy.version "1.9.0") ''
@@ -2094,15 +2157,18 @@ lib.composeManyExtensions [
         in
         selenium.overridePythonAttrs (old: {
           # Selenium <4 can be installed from sources, with setuptools
-          buildInputs = (old.buildInputs or [ ]) ++ (lib.optionals (!v4orLater) [ self.setuptools ]);
+          buildInputs = (old.buildInputs or [ ]) ++ lib.optionals (!v4orLater) [ self.setuptools ];
         });
 
       shapely = super.shapely.overridePythonAttrs (old: {
         nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [ pkgs.geos ];
 
-        GEOS_LIBRARY_PATH = "${pkgs.geos}/lib/libgeos_c${stdenv.hostPlatform.extensions.sharedLibrary}";
+        GEOS_LIBRARY_PATH =
+          "${pkgs.geos}/lib/libgeos_c${stdenv.hostPlatform.extensions.sharedLibrary}";
 
-        GEOS_LIBC = lib.optionalString (!stdenv.isDarwin) "${lib.getLib stdenv.cc.libc}/lib/libc${stdenv.hostPlatform.extensions.sharedLibrary}.6";
+        GEOS_LIBC = lib.optionalString
+          (!stdenv.isDarwin)
+          "${lib.getLib stdenv.cc.libc}/lib/libc${stdenv.hostPlatform.extensions.sharedLibrary}.6";
 
         # Fix library paths
         postPatch = lib.optionalString (!(old.src.isWheel or false)) (old.postPatch or "" + ''
@@ -2118,8 +2184,12 @@ lib.composeManyExtensions [
           in
           ''
             substituteInPlace setup.py \
-              --replace "'fetch_binaries': fetch_binaries," "'fetch_binaries': ${fakeCommand}," \
-              --replace "'install_shellcheck': install_shellcheck," "'install_shellcheck': ${fakeCommand},"
+              --replace \
+                "'fetch_binaries': fetch_binaries," \
+                "'fetch_binaries': ${fakeCommand}," \
+              --replace \
+                "'install_shellcheck': install_shellcheck," \
+                "'install_shellcheck': ${fakeCommand},"
           '';
 
         propagatedUserEnvPkgs = (old.propagatedUserEnvPkgs or [ ]) ++ [ pkgs.shellcheck ];
@@ -2127,7 +2197,9 @@ lib.composeManyExtensions [
 
       soundfile = super.soundfile.overridePythonAttrs (_: {
         postPatch = ''
-          substituteInPlace soundfile.py --replace "_find_library('sndfile')" "'${pkgs.libsndfile.out}/lib/libsndfile${stdenv.hostPlatform.extensions.sharedLibrary}'"
+          substituteInPlace soundfile.py --replace \
+            "_find_library('sndfile')" \
+            "'${pkgs.libsndfile.out}/lib/libsndfile${stdenv.hostPlatform.extensions.sharedLibrary}'"
         '';
       });
 
@@ -2213,8 +2285,8 @@ lib.composeManyExtensions [
 
       # The tokenizers build requires a complex rust setup (cf. nixpkgs override)
       #
-      # Instead of providing a full source build, we use a wheel to keep
-      # the complexity manageable for now.
+      # Instead of providing a full source build, we use a wheel to keep the complexity manageable
+      # for now.
       tokenizers = super.tokenizers.override {
         preferWheel = true;
       };
@@ -2234,7 +2306,9 @@ lib.composeManyExtensions [
             preFixup = lib.optionalString (!enableCuda) ''
               # For some reason pytorch retains a reference to libcuda even if it
               # is explicitly disabled with USE_CUDA=0.
-              find $out -name "*.so" -exec ${pkgs.patchelf}/bin/patchelf --remove-needed libcuda.so.1 {} \;
+              find $out \
+                -name "*.so" \
+                -exec ${pkgs.patchelf}/bin/patchelf --remove-needed libcuda.so.1 {} \;
             '';
             buildInputs = (old.buildInputs or [ ]) ++ [
               self.typing-extensions
@@ -2310,7 +2384,8 @@ lib.composeManyExtensions [
 
       watchfiles =
         let
-          # Watchfiles does not include Cargo.lock in tarball released on PyPi for versions up to 0.17.0
+          # Watchfiles does not include Cargo.lock in tarball released on PyPi for versions up to
+          # 0.17.0
           getRepoHash = version: {
             "0.18.1" = "sha256-XEhu6M1hFi3/gAKZcei7KJSrIhhlZhlvZvbfyA6VLR4=";
             "0.18.0" = "sha256-biGGn0YAUbSO1hCJ4kU0ZWlqlXl/HRrBS3iIA3myRI8=";
@@ -2336,8 +2411,12 @@ lib.composeManyExtensions [
           patchPhase = builtins.concatStringsSep "\n" [
             (old.patchPhase or "")
             ''
-              substituteInPlace "Cargo.lock" --replace 'version = "0.0.0"' 'version = "${old.version}"'
-              substituteInPlace "Cargo.toml" --replace 'version = "0.0.0"' 'version = "${old.version}"'
+              substituteInPlace "Cargo.lock" --replace \
+                'version = "0.0.0"' \
+                'version = "${old.version}"'
+              substituteInPlace "Cargo.toml" --replace \
+                'version = "0.0.0"' \
+                'version = "${old.version}"'
             ''
           ];
           cargoDeps = pkgs.rustPlatform.importCargoLock {
@@ -2389,8 +2468,8 @@ lib.composeManyExtensions [
         let
           old = super.packaging;
         in
-        # From 20.5 until 20.7, packaging used flit for packaging (heh)
-          # See https://github.com/pypa/packaging/pull/352 and https://github.com/pypa/packaging/pull/367
+        # From 20.5 until 20.7, packaging used flit for packaging (heh), see
+        # https://github.com/pypa/packaging/pull/352 and https://github.com/pypa/packaging/pull/367
         if (lib.versionAtLeast old.version "20.5" && lib.versionOlder old.version "20.8") then
           addBuildSystem
             {
@@ -2532,9 +2611,9 @@ lib.composeManyExtensions [
       pysqlite = super.pysqlite.overridePythonAttrs (old: {
         propagatedBuildInputs = (old.propagatedBuildInputs or [ ]) ++ [ pkgs.sqlite ];
         patchPhase = ''
-          substituteInPlace "setup.cfg"                                     \
-                  --replace "/usr/local/include" "${pkgs.sqlite.dev}/include"   \
-                  --replace "/usr/local/lib" "${pkgs.sqlite.out}/lib"
+          substituteInPlace "setup.cfg" \
+            --replace "/usr/local/include" "${pkgs.sqlite.dev}/include" \
+            --replace "/usr/local/lib" "${pkgs.sqlite.out}/lib"
           ${lib.optionalString (!stdenv.isDarwin) ''export LDSHARED="$CC -pthread -shared"''}
         '';
       });
@@ -2574,20 +2653,17 @@ lib.composeManyExtensions [
       nbconvert =
         let
           patchExporters = lib.optionalString (lib.versionAtLeast self.nbconvert.version "6.5.0") ''
-            substituteInPlace \
-              ./nbconvert/exporters/templateexporter.py \
+            substituteInPlace ./nbconvert/exporters/templateexporter.py \
               --replace \
-              'root_dirs.extend(jupyter_path())' \
-              'root_dirs.extend(jupyter_path() + [os.path.join("@out@", "share", "jupyter")])' \
+                'root_dirs.extend(jupyter_path())' \
+                'root_dirs.extend(jupyter_path() + [os.path.join("@out@", "share", "jupyter")])' \
               --subst-var out
           '';
         in
         super.nbconvert.overridePythonAttrs (old: {
           postPatch = lib.optionalString (!(old.src.isWheel or false)) (
             patchExporters + lib.optionalString (lib.versionAtLeast self.nbconvert.version "7.0") ''
-              substituteInPlace \
-                ./hatch_build.py \
-                --replace \
+              substituteInPlace ./hatch_build.py --replace \
                 'if self.target_name not in ["wheel", "sdist"]:' \
                 'if True:'
             ''
@@ -2620,7 +2696,9 @@ lib.composeManyExtensions [
           lib.optionalAttrs
             (lib.versionAtLeast old.version "0.17" && lib.versionOlder old.version "0.18")
             {
-              patches = (old.patches or [ ]) ++ lib.optionals (!(old.src.isWheel or false)) [ patchJinja2Imports ];
+              patches = (old.patches or [ ]) ++ lib.optionals (!(old.src.isWheel or false)) [
+                patchJinja2Imports
+              ];
               # strip the first two levels ("a/src/") when patching since we're in site-packages
               # just above mkdocstrings
               postInstall = lib.optionalString (old.src.isWheel or false) ''
